@@ -37,7 +37,7 @@ def color_species(val):
 def show_dataset(dataframe, rows):    
     result = dataframe.groupby('species').head(rows)
     # Style the DataFrame
-    styled_result = result.style.map(color_species, subset=['species'])
+    styled_result = result.style.map(color_species, subset=['species']).set_properties(**{'text-align': 'center'})
     
     return styled_result
 
@@ -60,7 +60,8 @@ def plot_heatmap(dataframe):
                 cmap='viridis',  # Use a more visually appealing colormap
                 linewidths=0.5,  # Add lines between cells
                 mask = mask,
-                annot_kws={"size": 8})  # Adjust annotation font size
+                annot_kws={"size": 8}
+                )  # Adjust annotation font size
    
     # Rotate x-axis labels and reduce font size
     plt.xticks(rotation=45, ha='right', fontsize=8)  # Reduce x-axis font size to 10
@@ -155,8 +156,26 @@ with st.sidebar:
 
 # Main Page for Output Display
 st.title("IRIS Dataset Snapshot")
+st.info("Toggle at the sidebar to view number of rows")
 dataframe = load_data()
-st.table(show_dataset(dataframe, num_row))
+
+# Convert the DataFrame to HTML and center the text
+html = show_dataset(dataframe, num_row).to_html(index=False)
+centered_html = f"""
+<style>
+table {{
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+}}
+th, td {{
+    text-align: center !important;
+}}
+</style>
+{html}
+"""
+# Display the centered table using st.markdown()
+st.markdown(centered_html, unsafe_allow_html=True)
 
 st.title("Heatmap and Correlation Plot")
 col1, col2 = st.columns([1,1], gap="small")
@@ -172,11 +191,6 @@ with col2:
 
 st.title("Prediction with GaussianNB")
 predict_GaussianNB(dataframe)
-# st.write(f"Accuracy of GaussianNB classifier: **{accuracy}**")
-# st.table(cr)
 
 st.title("Prediction with SVM")
 predict_SVM(dataframe)
-# st.write(f"Accuracy of SVM classifier: **{accuracy:.2f}**")
-# st.write("Confusion matrix")
-# st.pyplot(cm)
