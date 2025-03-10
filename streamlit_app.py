@@ -86,8 +86,92 @@ def plot_iris(dataframe):
         pairplot, "lower center",
         bbox_to_anchor=(0.5, 1), ncol=3, title=None, frameon=False,
     )
-
     return pairplot
+
+def my_linspace (min_value, max_value, steps):
+    diff = max_value - min_value
+    return np.linspace (min_value - 0.1 * diff, max_value + 0.1 * diff, steps)
+
+def my_mask (value, selected):
+    min_value = 1.7e+308
+    for i in range(len(value)):
+        if selected[i] and value[i] < min_value:
+            min_value = value[i]
+    for i in range(len(value)):
+        if not selected[i]:
+            value[i] = min_value
+    return value
+
+
+@st.cache_data(ttl=0.5*3600)
+def load_iris2():
+    return load_iris()
+
+def plot_svm():
+    iris = load_iris2()
+    x = iris.data[:,:2]
+    y = iris.target
+
+    steps = 200
+    x0 = my_linspace(min(x[:,0]), max(x[:,0]), steps)
+    x1 = my_linspace(min(x[:,1]), max(x[:,1]), steps)
+    xx0, xx1 = np.meshgrid(x0, x1)
+    mesh_data = np.c_[xx0.ravel(), xx1.ravel()]
+
+    color = ['red', 'green', 'blue']
+    y_color = [color[i] for i in y]
+    
+    # Create an SVM classifier
+    svm_classifier = SVC(kernel=kernel_value, C=c_value, probability=True, random_state=42, decision_function_shape='ovo')
+    
+    # Train the model
+    svm_classifier.fit(x, y)
+
+    pred = svm_classifier.predict(mesh_data)
+    deci = svm_classifier.decision_function(mesh_data)
+    prob = svm_classifier.predict_proba(mesh_data)
+
+    n_class = 3
+    mesh_deci = np.zeros((steps * steps, n_class))
+    mesh_prob = np.zeros((steps * steps, n_class))
+
+    # Plot decision boundaries for each pair of classes
+    j = 0
+    for k in range(n_class):
+        for l in range(k + 1, n_class):
+            mesh_deci[:, k] += deci[:, j]  # Update decision function for class k
+            mesh_deci[:, l] -= deci[:, j]  # Update decision function for class l 
+            j += 1
+
+    # Apply mask to probabilities and decision values
+    for j in range(n_class):
+        prob[:, j] = my_mask(prob[:, j], pred == j)
+        mesh_deci[:, j] = my_mask(mesh_deci[:, j], pred == j)
+    
+    # Reshape mesh_deci and prob for plotting
+    mesh_deci = mesh_deci.reshape(steps, steps, n_class)
+    mesh_prob = prob.reshape(steps, steps, n_class)
+
+    svmfig = plt.figure(figsize = (12, 6))
+    contour_color = [plt.cm.Reds, plt.cm.Greens, plt.cm.Blues]
+
+    col1, col2 = st.columns([1,1], gap="small")
+    with col1:    
+        # Plot decision function contours  
+        plt.subplot(1, 2, 1)     
+        for j in range(n_class):
+            plt.contourf(xx0, xx1, mesh_deci[:, :, j], 20, cmap=contour_color[j], alpha=0.3)
+        plt.scatter(x[:, 0], x[:, 1], c=y_color, edgecolors='k')
+        plt.title(f'Decision Function (C: {c_value} | Kernel: {kernel_value})')
+    with col2:    
+        # Plot probability contours
+        plt.subplot(1, 2, 2)
+        for j in range(n_class):
+            plt.contourf(xx0, xx1, mesh_prob[:, :, j], 20, cmap=contour_color[j], alpha=0.3)
+        plt.scatter(x[:, 0], x[:, 1], c=y_color, edgecolors='k')
+        plt.title(f'Class Probabilities (C: {c_value} | Kernel: {kernel_value})')
+
+    return svmfig
 
 def evaluation(y_test, y_pred):
     df = load_data()
@@ -163,7 +247,7 @@ def predict_SVM(dataframe):
     X_test = scaler.transform(X_test)
     
     # Create an SVM classifier
-    svm_classifier = SVC(kernel=kernel_value, C=c_value, random_state=42)
+    svm_classifier = SVC(kernel=kernel_value, C=c_value, random_state=4, decision_function_shape='ovo')
     
     # Train the model
     svm_classifier.fit(X_train, y_train)
@@ -180,7 +264,7 @@ with st.sidebar:
     num_row = st.number_input("Dataset Rows to View", value=3)
     st.markdown("---")
     c_value = st.selectbox("SVM c_value:", [1.0, 5.0, 10.0, 50.0])
-    kernel_value = st.selectbox("SVM kernel_value:", ["linear", "poly", "rbf", "sigmoid"])
+    kernel_value = st.selectbox("SVM kernel_value:", ["rbf", "linear", "poly", "sigmoid"])
 
 # Main Page for Output Display
 st.title("IRIS Dataset Snapshot")
@@ -219,6 +303,9 @@ with col2:
 
 st.title(f"Prediction with SVM with kernel={kernel_value} and C={c_value}")
 predict_SVM(dataframe)
+
+fig_svm = plot_svm()
+st.pyplot(fig_svm)
 
 st.title("Prediction with GaussianNB")
 predict_GaussianNB(dataframe)
