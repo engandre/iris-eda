@@ -18,8 +18,13 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded")
 
-st.cache_data.clear()
-@st.cache_data
+try:
+    st.cache_data.clear()
+    st.cache_resource.clear()
+except:
+    pass
+
+@st.cache_data(ttl=0.5*3600)
 # cache the dataframe, so it’s only loaded once when the app starts.
 def load_data():
     iris = load_iris()
@@ -194,3 +199,9 @@ predict_GaussianNB(dataframe)
 
 st.title("Prediction with SVM")
 predict_SVM(dataframe)
+
+try:
+    st.cache_data.clear()
+    st.cache_resource.clear()
+except:
+    pass
