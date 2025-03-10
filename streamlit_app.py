@@ -6,8 +6,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from sklearn.datasets import load_iris
+from sklearn import metrics
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -88,7 +89,10 @@ def plot_iris(dataframe):
 
     return pairplot
 
-def evaluation(y_test, y_pred, class_names=load_iris().target_names):
+def evaluation(y_test, y_pred):
+    df = load_data()
+    class_names = df['species'].unique()
+
     col1, col2 = st.columns([1,1], gap="small")
     with col1:
         # Compute the confusion matrix
@@ -102,10 +106,25 @@ def evaluation(y_test, y_pred, class_names=load_iris().target_names):
         st.pyplot(fig)
    
     with col2:            
-        # Display accuracy score
-        st.subheader("Accuracy Score")
-        accuracy = accuracy_score(y_test, y_pred)
-        st.write(f"The accuracy of the model is: **{accuracy:.2f}**")
+        # # Display accuracy score
+        # st.subheader("Accuracy Score")
+        # accuracy = accuracy_score(y_test, y_pred)
+        # st.write(f"The accuracy of the model is: **{accuracy:.2f}**")
+
+        # Calculate metrics
+        accuracy = metrics.accuracy_score(y_test, y_pred)
+        precision = metrics.precision_score(y_test, y_pred, average='micro')
+        recall = metrics.recall_score(y_test, y_pred, average='micro')
+        f1 = metrics.f1_score(y_test, y_pred, average='micro')
+        
+        st.write("\n" + "=" * 40)
+        st.write("Performance Metrics".center(40))
+        st.write("=" * 40)
+        st.write(f"{'Accuracy:':^20}{accuracy:.4f}")
+        st.write(f"{'Precision:':^20}{precision:.4f}")
+        st.write(f"{'Recall:':^20}{recall:.4f}")
+        st.write(f"{'F1-Score:':^20}{f1:.4f}")
+        st.write("=" * 40)
 
     return
 
@@ -130,6 +149,7 @@ def predict_GaussianNB(dataframe):
     return evaluation(y_test, y_pred)
 
 def predict_SVM(dataframe):
+
     # Split the data into features (X) and target (y)
     X = dataframe.drop(columns=['species'])  # Features
     y = dataframe['species']  # Target
@@ -143,7 +163,7 @@ def predict_SVM(dataframe):
     X_test = scaler.transform(X_test)
     
     # Create an SVM classifier
-    svm_classifier = SVC(kernel='linear', C=1.0, random_state=42)
+    svm_classifier = SVC(kernel=kernel_value, C=c_value, random_state=42)
     
     # Train the model
     svm_classifier.fit(X_train, y_train)
@@ -157,7 +177,10 @@ def predict_SVM(dataframe):
 with st.sidebar:
     st.title("DataFrame Options")
     st.write("`Created by: Andre`")
-    num_row = st.number_input("Rows to View", value=3)
+    num_row = st.number_input("Dataset Rows to View", value=3)
+    st.markdown("---")
+    c_value = st.selectbox("SVM c_value:", [1.0, 5.0, 10.0, 50.0])
+    kernel_value = st.selectbox("SVM kernel_value:", ["linear", "poly", "rbf", "sigmoid"])
 
 # Main Page for Output Display
 st.title("IRIS Dataset Snapshot")
@@ -194,11 +217,11 @@ with col2:
     pairplot_fig_iris = plot_iris(dataframe)
     st.pyplot(pairplot_fig_iris)
 
+st.title(f"Prediction with SVM with kernel={kernel_value} and C={c_value}")
+predict_SVM(dataframe)
+
 st.title("Prediction with GaussianNB")
 predict_GaussianNB(dataframe)
-
-st.title("Prediction with SVM")
-predict_SVM(dataframe)
 
 try:
     st.cache_data.clear()
